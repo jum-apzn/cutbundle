@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "seconds": 0.76,
+  "size": [
+    768,
+    768
+  ],
+  "alpha_min": 0,
+  "alpha_max": 255,
+  "background_mean_alpha": 0.0,
+  "subject_mean_alpha": 254.0003,
+  "input": "self-created synthetic bottle illustration, not a real photograph"
+}
