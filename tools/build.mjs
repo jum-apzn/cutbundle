@@ -1,0 +1,11 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+const hash=s=>createHash('sha256').update(s).digest('base64');
+let html=await readFile('index.html','utf8');
+const css=await readFile('src/style.css','utf8');
+const core=(await readFile('src/core.js','utf8')).replace(/^export /gm,'');
+const app=(await readFile('src/app.js','utf8')).replace(/^import .*?;\n/,'');
+const script=core+'\n'+app;
+html=html.replace("script-src 'self'",`script-src 'sha256-${hash(script)}'`).replace("style-src 'self'",`style-src 'sha256-${hash(css)}'`).replace('<link rel="stylesheet" href="src/style.css">',`<style>${css}</style>`).replace('<script type="module" src="src/app.js"></script>',`<script type="module">${script}</script>`);
+await mkdir('dist',{recursive:true});await writeFile('dist/cutbundle.html',html);
+console.log('Built dist/cutbundle.html (self-contained, hash-based CSP)');
