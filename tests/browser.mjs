@@ -1,0 +1,32 @@
+// Optional browser QA: npm install --no-save playwright; npx playwright install chromium
+// Start app on 127.0.0.1:4173, then node tests/browser.mjs.
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+const {chromium}=await import(process.env.PLAYWRIGHT_PATH||'playwright');
+await mkdir('artifacts',{recursive:true});
+const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
+const page=await browser.newPage({viewport:{width:1440,height:1080}}), errors=[], external=[];
+page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:4173')&&!r.url().startsWith('blob:')&&!r.url().startsWith('data:'))external.push(r.url());});
+await page.goto('http://127.0.0.1:4173');
+await page.click('#demo');await page.waitForFunction(()=>document.querySelectorAll('.photo').length===6);
+assert.equal(await page.locator('#exportCount').textContent(),'12장');
+assert.equal(await page.locator('.photo-info input').first().inputValue(),'세이지 머그');
+await page.screenshot({path:'artifacts/desktop.png',fullPage:true});
+let download=page.waitForEvent('download');await page.click('#export');await(await download).saveAs('artifacts/demo-12-images.zip');
+await page.waitForFunction(()=>!document.querySelector('#export').disabled);
+await page.locator('.photo-preview').first().click();await page.selectOption('#mode','simple');
+await page.click('#saveEdit');assert.equal(await page.locator('#editor').evaluate(el=>el.open),true);
+await page.check('#approved');await page.click('#saveEdit');assert.equal(await page.locator('#editor').evaluate(el=>el.open),false);
+await page.locator('.photo-preview').first().click();await page.selectOption('#mode','original');await page.locator('.close').click();
+assert.equal(await page.locator('.photo-preview span').first().textContent(),'단색 배경');
+await page.uncheck('#square');await page.uncheck('#portrait');assert.equal(await page.locator('#export').isDisabled(),true);
+await page.check('#square');await page.check('#portrait');
+await page.check('#originals');download=page.waitForEvent('download');await page.click('#export');await(await download).saveAs('artifacts/demo-with-originals.zip');await page.waitForFunction(()=>!document.querySelector('#export').disabled);
+await page.locator('.remove').first().click();assert.equal(await page.locator('.photo').count(),5);
+await page.setInputFiles('#files',{name:'broken.png',mimeType:'image/png',buffer:Buffer.from('not an image')});await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('읽을 수 없어요'));
+assert.equal(await page.locator('.photo').count(),5);
+await page.setViewportSize({width:390,height:844});await page.screenshot({path:'artifacts/mobile.png',fullPage:true});
+assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+console.log('PASS: 12-output export; groups; confirm; cancel; empty presets; original ZIP; remove; corrupt input; mobile overflow; no external requests; no JS errors.');
+await browser.close();

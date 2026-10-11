@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {safeName,contain,alphaBounds,removeBackdrop,crc32,zipStore} from '../src/core.js';
+test('safe paths keep Korean and block traversal',()=>{assert.equal(safeName('../../상품/사진'),'상품-사진');assert.equal(safeName('...'),'product');assert.equal(safeName('사진'),'사진');});
+test('contain preserves aspect, centers, and respects margin',()=>{assert.deepEqual(contain({width:200,height:100},1000,1000,.1),{x:100,y:300,width:800,height:400});});
+test('portrait layout never clips',()=>{const d=contain({width:200,height:500},1200,1600,.12);assert.equal(d.height,1216);assert.ok(d.width<=912);assert.equal(d.y,192);});
+test('alpha bounds ignore transparent pixels',()=>{const d=new Uint8ClampedArray(4*4*4);d[(1*4+2)*4+3]=255;assert.deepEqual(alphaBounds(d,4,4),{x:2,y:1,width:1,height:1});});
+test('empty alpha is explicit null',()=>assert.equal(alphaBounds(new Uint8ClampedArray(16),2,2),null));
+test('flood fill removes edge, preserving enclosed same-color center',()=>{const d=new Uint8ClampedArray(5*5*4).fill(255);for(let y=1;y<=3;y++)for(let x=1;x<=3;x++)if(x===1||x===3||y===1||y===3){const i=(y*5+x)*4;d[i]=0;d[i+1]=0;d[i+2]=0;}const r=removeBackdrop(d,5,5,10);assert.equal(r.data[3],0);assert.equal(r.data[(2*5+2)*4+3],255);assert.equal(r.removed,16/25);assert.equal(d[3],255);});
+test('uneven corners are flagged',()=>{const d=new Uint8ClampedArray(3*3*4).fill(255);d[0]=0;assert.equal(removeBackdrop(d,3,3,10).uneven,true);});
+test('CRC32 standard vector',()=>assert.equal(crc32(new TextEncoder().encode('123456789')),0xcbf43926));
+test('ZIP has signatures and UTF-8 flag',async()=>{const b=await zipStore([{name:'상품/a.txt',data:new TextEncoder().encode('hello')}]).arrayBuffer(),v=new DataView(b);assert.equal(v.getUint32(0,true),0x04034b50);assert.equal(v.getUint16(6,true),0x800);assert.equal(v.getUint32(b.byteLength-22,true),0x06054b50);assert.equal(v.getUint16(b.byteLength-12,true),1);});
