@@ -1,0 +1,13 @@
+{
+  "name": "cutbundle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Private, offline product-photo export packs",
+  "scripts": {
+    "start": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "test": "node --test tests/core.test.mjs",
+    "build": "node tools/build.mjs"
+  },
+  "license": "MIT"
+}
